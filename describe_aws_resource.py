@@ -44,6 +44,8 @@ def parse_arn(arn):
         else:
             resource["name"] = arn_dict["resource"]
             resource["sub_type"] = None
+    else:
+        raise ValueError(f"Invalid ARN: {arn}")
     return resource
 
 
@@ -76,9 +78,12 @@ def determine_resource_type(args):
         "name": "unknown",
     }
     identifier = args.identifier
+    args.verbose and print(f"Parsing {identifier}")
     if identifier.startswith("arn:"):
+        args.verbose and print("It's an ARN.")
         resource = parse_arn(identifier)
-    if identifier.startswith("s3://"):
+    elif identifier.startswith("s3://"):
+        args.verbose and print("It's an s3 URL.")
         resource = parse_s3_url(identifier)
     else:
         resource["name"] = identifier
