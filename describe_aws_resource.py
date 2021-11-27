@@ -5,12 +5,38 @@ Someday rewrite this as a package thing.
 """
 
 import re
-import pprint
+import json
+import datetime
 import argparse
 import sys
 import boto3
 import botocore
 from botocore.config import Config
+
+
+def json_value_converter(o):
+    """
+    Use this function in the 'default' argument for json.dumps to convert values that
+    are not strings.
+    """
+    if isinstance(o, datetime.datetime):
+        return o.__str__()
+    else:
+        return None
+
+
+def print_json(o):
+    """
+    print out the object as json
+    """
+    print(
+        json.dumps(
+            o,
+            default=json_value_converter,
+            sort_keys=True,
+            indent=2,
+        )
+    )
 
 
 def parse_arn(arn):
@@ -123,23 +149,28 @@ def describe_resource(resource, args):
         if resource["sub_type"] == "instance":
             response = client.describe_instances(InstanceIds=[resource["name"]])
         if args.full:
-            pprint.pprint(response)
+            print_json(response)
         else:
             filtered_response = {
                 n: response["Reservations"][0]["Instances"][0][n]
                 for n in response["Reservations"][0]["Instances"][0]
                 if n in filtered_attributes
             }
-            pprint.pprint(filtered_response)
+            print_json(filtered_response)
     if resource["type"] == "s3":
         client = boto3.client("s3", config=aws_config)
+        bucket_name = (
+            resource["name"]
+            if resource["sub_type"] == "bucket"
+            else resource["name"][0]
+        )
+        region = (
+            client.get_bucket_location(Bucket=bucket_name)["LocationConstraint"]
+            or "us-east-1"
+        )
         if resource["sub_type"] == "bucket":
             bucket = {"name": resource["name"]}
-            location = (
-                client.get_bucket_location(Bucket=bucket["name"])["LocationConstraint"]
-                or "us-east-1"
-            )
-            bucket["location"] = location
+            bucket["region"] = region
             bucket["versioning"] = {
                 "status": client.get_bucket_versioning(Bucket=bucket["name"]).get(
                     "Status", "Disabled"
@@ -151,13 +182,13 @@ def describe_resource(resource, args):
                 ]
             except botocore.exceptions.ClientError:
                 bucket["tags"] = {}
-            pprint.pprint(bucket)
+            print_json(bucket)
         elif resource["sub_type"] == "object":
             bucket = resource["name"][0]
             object_key = resource["name"][1]
-            bucket_object = {"bucket": bucket, "key": object_key}
+            bucket_object = {"bucket": bucket, "key": object_key, "region": region}
             bucket_object.update(client.head_object(Bucket=bucket, Key=object_key))
-            pprint.pprint(bucket_object)
+            print_json(bucket_object)
         else:
             print("Unknown S3 thing")
 
