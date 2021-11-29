@@ -14,6 +14,10 @@ import botocore
 from botocore.config import Config
 
 
+def print_err(m):
+    print(m, file=sys.stderr)
+
+
 def json_value_converter(o):
     """
     Use this function in the 'default' argument for json.dumps to convert values that
@@ -127,7 +131,7 @@ def determine_resource_type(args):
             resource["type"] = "ec2"
             resource["sub_type"] = "vpc"
         else:
-            print(f"Cannot determine what type of resource '{identifier}' is.")
+            print_err(f"Cannot determine what type of resource '{identifier}' is.")
             sys.exit(2)
 
     return resource
@@ -172,6 +176,22 @@ def describe_ec2_resource(r, client, cli_args):
             ]
         )
         data = response["Vpcs"][0]
+    elif r["sub_type"] == "volume":
+        cli_args.verbose and print(f"Querying EBS volume {r['name']}")
+        response = client.describe_volumes(
+            VolumeIds=[
+                r["name"],
+            ]
+        )
+        data = response["Volumes"][0]
+    elif r["sub_type"] == "snapshot":
+        cli_args.verbose and print(f"Querying EBS snapshot {r['name']}")
+        response = client.describe_snapshots(
+            SnapshotIds=[
+                r["name"],
+            ]
+        )
+        data = response["Snapshots"][0]
     return data
 
 
@@ -217,7 +237,8 @@ def describe_resource(resource, args):
             bucket_object.update(client.head_object(Bucket=bucket, Key=object_key))
             print_json(bucket_object)
         else:
-            print("Unknown S3 thing")
+            print_err("Unknown S3 thing")
+            sys.exit(2)
 
 
 def main():
@@ -226,6 +247,7 @@ def main():
     my_parser.set_defaults(dry_run=False, full=False, verbose=False)
     my_parser.add_argument("--dry-run", dest="dry_run", action="store_true")
     my_parser.add_argument("--verbose", action="store_true")
+    # This only affects the ec2 instance data. Take it out? Change it?
     my_parser.add_argument(
         "--full", action="store_true", help="return all info about the resource"
     )
@@ -241,8 +263,8 @@ def main():
         action="store",
         type=str,
         help="""Specify the region that this resource is in.
-                           Otherwise the region in your environment, awscli
-                           profile, or default region will be used.""",
+                Otherwise the region in your environment, awscli
+                profile, or default region will be used.""",
     )
 
     args = my_parser.parse_args()
@@ -251,7 +273,7 @@ def main():
         iam = boto3.client("iam")
         iam.get_account_summary()
     except botocore.exceptions.ClientError:
-        print("Set up AWS credentials or profile in your environment.")
+        print_err("Set up AWS credentials or profile in your environment.")
         sys.exit(1)
 
     resource = determine_resource_type(args)
