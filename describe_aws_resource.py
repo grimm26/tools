@@ -21,8 +21,6 @@ def json_value_converter(o):
     """
     if isinstance(o, datetime.datetime):
         return o.__str__()
-    else:
-        return None
 
 
 def print_json(o):
@@ -125,11 +123,56 @@ def determine_resource_type(args):
         elif re.match("vol-", identifier):
             resource["type"] = "ec2"
             resource["sub_type"] = "volume"
+        elif re.match("vpc-", identifier):
+            resource["type"] = "ec2"
+            resource["sub_type"] = "vpc"
         else:
             print(f"Cannot determine what type of resource '{identifier}' is.")
             sys.exit(2)
 
     return resource
+
+
+def describe_ec2_resource(r, client, cli_args):
+    """
+    Describe an ec2 type resource
+    """
+    data = {}
+    if r["sub_type"] == "instance":
+        filtered_attributes = [
+            "InstanceType",
+            "PrivateIpAddress",
+            "SecurityGroups",
+            "SubnetId",
+            "VpcId",
+        ]
+        cli_args.verbose and print(f"Querying EC2 instance {r['name']}")
+        response = client.describe_instances(InstanceIds=[r["name"]])
+        if cli_args.full:
+            data = response["Reservations"][0]["Instances"][0]
+        else:
+            data = {
+                n: response["Reservations"][0]["Instances"][0][n]
+                for n in response["Reservations"][0]["Instances"][0]
+                if n in filtered_attributes
+            }
+    elif r["sub_type"] == "subnet":
+        cli_args.verbose and print(f"Querying subnet {r['name']}")
+        response = client.describe_subnets(
+            SubnetIds=[
+                r["name"],
+            ]
+        )
+        data = response["Subnets"][0]
+    elif r["sub_type"] == "vpc":
+        cli_args.verbose and print(f"Querying vpc {r['name']}")
+        response = client.describe_vpcs(
+            VpcIds=[
+                r["name"],
+            ]
+        )
+        data = response["Vpcs"][0]
+    return data
 
 
 def describe_resource(resource, args):
@@ -138,26 +181,10 @@ def describe_resource(resource, args):
     if args.region is not None:
         aws_config = Config(region_name=args.region)
     if resource["type"] == "ec2":
-        filtered_attributes = [
-            "InstanceType",
-            "PrivateIpAddress",
-            "SecurityGroups",
-            "SubnetId",
-            "VpcId",
-        ]
         client = boto3.client("ec2", config=aws_config)
-        if resource["sub_type"] == "instance":
-            response = client.describe_instances(InstanceIds=[resource["name"]])
-        if args.full:
-            print_json(response)
-        else:
-            filtered_response = {
-                n: response["Reservations"][0]["Instances"][0][n]
-                for n in response["Reservations"][0]["Instances"][0]
-                if n in filtered_attributes
-            }
-            print_json(filtered_response)
-    if resource["type"] == "s3":
+        ec2_data = describe_ec2_resource(client=client, r=resource, cli_args=args)
+        print_json(ec2_data)
+    elif resource["type"] == "s3":
         client = boto3.client("s3", config=aws_config)
         bucket_name = (
             resource["name"]
