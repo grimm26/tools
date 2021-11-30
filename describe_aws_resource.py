@@ -4,11 +4,12 @@ Describe any given AWS resource by name or ARN.
 Someday rewrite this as a package thing.
 """
 
-import re
-import json
-import datetime
 import argparse
+import datetime
+import json
+import re
 import sys
+
 import boto3
 import botocore
 from botocore.config import Config
@@ -106,12 +107,12 @@ def determine_resource_type(args):
         "name": "unknown",
     }
     identifier = args.identifier
-    args.verbose and print(f"Parsing {identifier}")
+    print(f"Parsing {identifier}") if args.verbose else None
     if identifier.startswith("arn:"):
-        args.verbose and print("It's an ARN.")
+        print("It's an ARN.") if args.verbose else None
         resource = parse_arn(identifier)
     elif identifier.startswith("s3://"):
-        args.verbose and print("It's an s3 URL.")
+        print("It's an s3 URL.") if args.verbose else None
         resource = parse_s3_url(identifier)
     else:
         resource["name"] = identifier
@@ -150,7 +151,7 @@ def describe_ec2_resource(r, client, cli_args):
             "SubnetId",
             "VpcId",
         ]
-        cli_args.verbose and print(f"Querying EC2 instance {r['name']}")
+        print(f"Querying EC2 instance {r['name']}") if cli_args.verbose else None
         response = client.describe_instances(InstanceIds=[r["name"]])
         if cli_args.full:
             data = response["Reservations"][0]["Instances"][0]
@@ -161,7 +162,7 @@ def describe_ec2_resource(r, client, cli_args):
                 if n in filtered_attributes
             }
     elif r["sub_type"] == "subnet":
-        cli_args.verbose and print(f"Querying subnet {r['name']}")
+        print(f"Querying subnet {r['name']}") if cli_args.verbose else None
         response = client.describe_subnets(
             SubnetIds=[
                 r["name"],
@@ -169,7 +170,8 @@ def describe_ec2_resource(r, client, cli_args):
         )
         data = response["Subnets"][0]
     elif r["sub_type"] == "vpc":
-        cli_args.verbose and print(f"Querying vpc {r['name']}")
+        print(f"Querying vpc {r['name']}") if cli_args.verbose else None
+
         response = client.describe_vpcs(
             VpcIds=[
                 r["name"],
@@ -177,7 +179,7 @@ def describe_ec2_resource(r, client, cli_args):
         )
         data = response["Vpcs"][0]
     elif r["sub_type"] == "volume":
-        cli_args.verbose and print(f"Querying EBS volume {r['name']}")
+        print(f"Querying EBS volume {r['name']}") if cli_args.verbose else None
         response = client.describe_volumes(
             VolumeIds=[
                 r["name"],
@@ -185,7 +187,7 @@ def describe_ec2_resource(r, client, cli_args):
         )
         data = response["Volumes"][0]
     elif r["sub_type"] == "snapshot":
-        cli_args.verbose and print(f"Querying EBS snapshot {r['name']}")
+        print(f"Querying EBS snapshot {r['name']}") if cli_args.verbose else None
         response = client.describe_snapshots(
             SnapshotIds=[
                 r["name"],
