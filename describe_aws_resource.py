@@ -261,6 +261,12 @@ def main():
         help="identifier for the resource, a name or ARN",
     )
     my_parser.add_argument(
+        "--profile",
+        action="store",
+        type=str,
+        help="Specify an awscli profile to use for this query.",
+    )
+    my_parser.add_argument(
         "--region",
         action="store",
         type=str,
@@ -271,6 +277,8 @@ def main():
 
     args = my_parser.parse_args()
 
+    if args.profile is not None:
+        boto3.setup_default_session(profile_name=args.profile)
     try:
         iam = boto3.client("iam")
         iam.get_account_summary()
