@@ -96,6 +96,59 @@ def parse_s3_url(url):
     return resource
 
 
+def possible_route53_resource(args):
+    """
+    Check if this is a route53 zone or resource name
+    """
+    name = args.identifier
+    dotted_name = name if name.endswith(".") else name + "."
+    client = boto3.client("route53")
+    all_zones = client.list_hosted_zones(MaxItems="100")["HostedZones"]
+    matched_zones = {
+        zone["Name"]: zone["Id"]
+        for zone in all_zones
+        if dotted_name.endswith(zone["Name"])
+    }
+    if dotted_name in matched_zones.keys():
+        """Do a zone lookup"""
+        print(f"Doing a zone lookup on {dotted_name}") if args.verbose else None
+        return {
+            "name": matched_zones[dotted_name],
+            "type": "route53",
+            "sub_type": "hosted_zone",
+        }
+    elif len(matched_zones) > 0:
+        """Lookup the name against the zones here."""
+        for zone_name, zone_id in matched_zones.items():
+            print(
+                f"Checking zone {zone_name} for record {name}"
+            ) if args.verbose else None
+            paginator = client.get_paginator("list_resource_record_sets")
+            page_iterator = paginator.paginate(HostedZoneId=zone_id)
+            filtered_iterator = page_iterator.search(
+                "ResourceRecordSets[?Name==`" + dotted_name + "`]"
+            )
+
+            # for page in page_iterator:
+            for data in filtered_iterator:
+                return {
+                    "name": name,
+                    "type": "route53",
+                    "sub_type": "record",
+                    "data": data,
+                }
+    else:
+        return None
+
+
+def describe_route53_resource(r, client, cli_args):
+    """
+    Describe a route53 zone or record
+    """
+    response = client.get_hosted_zone(Id=r["name"])
+    return response["HostedZone"]
+
+
 def determine_resource_type(args):
     """
     Determine what type of AWS resource this is and what its name is.
@@ -131,11 +184,17 @@ def determine_resource_type(args):
         elif re.match("vpc-", identifier):
             resource["type"] = "ec2"
             resource["sub_type"] = "vpc"
+        elif re.match(r"[-\w]+\.[-\w]+[\.]*", identifier):
+            resource = possible_route53_resource(args)
         else:
             print_err(f"Cannot determine what type of resource '{identifier}' is.")
             sys.exit(2)
 
-    return resource
+    if resource:
+        return resource
+    else:
+        print_err(f"Cannot determine what type of resource '{identifier}' is.")
+        sys.exit(2)
 
 
 def describe_ec2_resource(r, client, cli_args):
@@ -241,6 +300,15 @@ def describe_resource(resource, args):
         else:
             print_err("Unknown S3 thing")
             sys.exit(2)
+    elif resource["type"] == "route53":
+        if resource["sub_type"] == "record":
+            print_json(resource["data"])
+        else:
+            client = boto3.client("route53")
+            route53_data = describe_route53_resource(
+                client=client, r=resource, cli_args=args
+            )
+            print_json(route53_data)
 
 
 def main():
