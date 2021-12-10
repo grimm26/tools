@@ -324,10 +324,9 @@ def main():
         "--full", action="store_true", help="return all info about the resource"
     )
     my_parser.add_argument(
-        "--identifier",
+        "identifier",
         action="store",
         type=str,
-        required=True,
         help="identifier for the resource, a name or ARN",
     )
     my_parser.add_argument(
