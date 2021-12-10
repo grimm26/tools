@@ -126,7 +126,7 @@ def possible_route53_resource(args):
             paginator = client.get_paginator("list_resource_record_sets")
             page_iterator = paginator.paginate(HostedZoneId=zone_id)
             filtered_iterator = page_iterator.search(
-                "ResourceRecordSets[?Name==`" + dotted_name + "`]"
+                f"ResourceRecordSets[?Name==`{dotted_name}`]"
             )
 
             # for page in page_iterator:
