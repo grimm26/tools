@@ -187,13 +187,15 @@ def determine_resource_type(args):
         elif re.match(r"[-\w]+\.[-\w]+[\.]*", identifier):
             resource = possible_route53_resource(args)
         else:
-            print_err(f"Cannot determine what type of resource '{identifier}' is.")
-            sys.exit(2)
+            resource = None
 
     if resource:
         return resource
     else:
-        print_err(f"Cannot determine what type of resource '{identifier}' is.")
+        print_err(
+            f"Cannot determine what type of resource '{identifier}' is and/or it "
+            "does not exist in this AWS account."
+        )
         sys.exit(2)
 
 
