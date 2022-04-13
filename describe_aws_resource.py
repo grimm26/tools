@@ -12,6 +12,7 @@ import sys
 
 import boto3
 import botocore
+import botocore.exceptions
 from botocore.config import Config
 
 
@@ -21,8 +22,8 @@ def print_err(m):
 
 def json_value_converter(o):
     """
-    Use this function in the 'default' argument for json.dumps to convert values that
-    are not strings.
+    Use this function in the 'default' argument for json.dumps to convert
+    values that are not strings.
     """
     if isinstance(o, datetime.datetime):
         return o.__str__()
@@ -84,16 +85,18 @@ def parse_s3_url(url):
     included.
     """
     resource = {}
-    s3_match = re.match(r"s3://(?P<bucket>[^/]+)/?(?P<key>\S+)?$", url)
-    bucket_dict = s3_match.groupdict()
-    resource["type"] = "s3"
-    if bucket_dict["key"] is None:
-        resource["sub_type"] = "bucket"
-        resource["name"] = bucket_dict["bucket"]
+    if s3_match := re.match(r"s3://(?P<bucket>[^/]+)/?(?P<key>\S+)?$", url):
+        bucket_dict = s3_match.groupdict()
+        resource["type"] = "s3"
+        if bucket_dict["key"] is None:
+            resource["sub_type"] = "bucket"
+            resource["name"] = bucket_dict["bucket"]
+        else:
+            resource["sub_type"] = "object"
+            resource["name"] = [bucket_dict["bucket"], bucket_dict["key"]]
+        return resource
     else:
-        resource["sub_type"] = "object"
-        resource["name"] = [bucket_dict["bucket"], bucket_dict["key"]]
-    return resource
+        raise ValueError(f"Invalid S3 URL: {url}")
 
 
 def possible_route53_resource(args):
@@ -351,7 +354,7 @@ def main():
     try:
         iam = boto3.client("iam")
         iam.get_account_summary()
-    except botocore.exceptions.ClientError:
+    except (botocore.exceptions.ClientError, botocore.exceptions.NoCredentialsError):
         print_err("Set up AWS credentials or profile in your environment.")
         sys.exit(1)
 
