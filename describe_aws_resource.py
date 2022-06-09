@@ -196,8 +196,8 @@ def determine_resource_type(args):
         return resource
     else:
         print_err(
-            f"Cannot determine what type of resource '{identifier}' is and/or it "
-            "does not exist in this AWS account."
+            f"Cannot determine what type of resource '{identifier}' is and/or it does "
+            "not exist in this AWS account."
         )
         sys.exit(2)
 
@@ -361,7 +361,8 @@ def main():
     resource = determine_resource_type(args)
     if args.verbose or args.dry_run:
         print(
-            f"Resource : type = {resource['type']}, sub type = {resource['sub_type']}, name = {resource['name']}"
+            f"Resource : type = {resource['type']}, sub type = {resource['sub_type']},"
+            f" name = {resource['name']}"
         )
     if not args.dry_run:
         describe_resource(resource, args)
