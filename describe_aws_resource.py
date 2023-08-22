@@ -155,7 +155,7 @@ def describe_route53_resource(r, client, cli_args):
 def determine_resource_type(args):
     """
     Determine what type of AWS resource this is and what its name is.
-    This will help us determine what methd to use to describe this resource.
+    This will help us determine what method to use to describe this resource.
     """
     resource = {
         "type": "unknown",
