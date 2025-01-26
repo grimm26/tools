@@ -317,7 +317,6 @@ def describe_resource(resource, args):
 
 
 def main():
-    """The main ting"""
     my_parser = argparse.ArgumentParser(description="Describe a given AWS resource.")
     my_parser.set_defaults(dry_run=False, full=False, verbose=False)
     my_parser.add_argument("--dry-run", dest="dry_run", action="store_true")
