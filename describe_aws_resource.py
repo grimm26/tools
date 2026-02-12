@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "boto3>=1.42.47",
+#     "botocore>=1.42.47",
+# ]
+# ///
 """
 Describe any given AWS resource by name or ARN.
 Someday rewrite this as a package thing.
@@ -65,9 +72,9 @@ def parse_arn(arn):
         arn_dict = arn_match.groupdict()
         resource["type"] = arn_dict["service"]
         if arn_dict["service"] == "ec2":
-            (resource["sub_type"], resource["name"]) = arn_dict["resource"].split("/")
+            resource["sub_type"], resource["name"] = arn_dict["resource"].split("/")
         elif arn_dict["service"] == "rds":
-            (resource["sub_type"], resource["name"]) = arn_dict["resource"].split(":")
+            resource["sub_type"], resource["name"] = arn_dict["resource"].split(":")
         elif arn_dict["service"] == "s3":
             resource["sub_type"] = "bucket"
             resource["name"] = arn_dict["resource"]
@@ -123,9 +130,11 @@ def possible_route53_resource(args):
     elif len(matched_zones) > 0:
         """Lookup the name against the zones here."""
         for zone_name, zone_id in matched_zones.items():
-            print(
-                f"Checking zone {zone_name} for record {name}"
-            ) if args.verbose else None
+            (
+                print(f"Checking zone {zone_name} for record {name}")
+                if args.verbose
+                else None
+            )
             paginator = client.get_paginator("list_resource_record_sets")
             page_iterator = paginator.paginate(HostedZoneId=zone_id)
             filtered_iterator = page_iterator.search(
